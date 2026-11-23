@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#f5efe6">
+    <title>Mimarlık Tarihi Atlası | Batuhan Hocam</title>
+    <style>
+        :root {
+            --bg-parchment: #f5efe6;
+            --bg-stone: #ebe1d3;
+            --ink-dark: #261e1b;
+            --ink-muted: #695a52;
+            --terracotta: #b85d3b;
+            --gold: #c6923a;
+            --lapis: #2b4c7e;
+            --panel-bg: rgba(255, 251, 245, 0.86);
+            --border-line: rgba(38, 30, 27, 0.16);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1c1613;
+            font-family: "Georgia", "Times New Roman", serif;
+            color: var(--ink-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 9:16 Dikey Telefon Çerçevesi */
+        #app-shell {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 480px;
+            max-height: 920px;
+            background: radial-gradient(circle at 50% 30%, #fbf7f0 0%, var(--bg-parchment) 70%, var(--bg-stone) 100%);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.45);
+        }
+
+        @media (min-width: 500px) {
+            #app-shell {
+                height: 94vh;
+                border-radius: 32px;
+                border: 2px solid #d4c4b0;
+            }
+        }
+
+        canvas#arch-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Üst Durum Çubuğu */
+        .top-bar {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: calc(env(safe-area-inset-top, 14px) + 12px) 18px 10px;
+            background: linear-gradient(180deg, rgba(245, 239, 230, 0.96) 0%, rgba(245, 239, 230, 0) 100%);
+        }
+
+        .arch-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.3px;
+            text-transform: uppercase;
+            color: var(--terracotta);
+            background: rgba(184, 93, 59, 0.1);
+            border: 1px solid rgba(184, 93, 59, 0.3);
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        .top-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-line);
+            color: var(--ink-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 15px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(38, 30, 27, 0.08);
+            transition: transform 0.15s ease;
+        }
+
+        .icon-btn:active {
+            transform: scale(0.9);
+            border-color: var(--terracotta);
+        }
+
+        /* 7 Aşamalı İlerleme Çubuğu */
+        .progress-track {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            gap: 5px;
+            padding: 0 20px;
+        }
+
+        .progress-seg {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(38, 30, 27, 0.12);
+            transition: background 0.35s ease;
+        }
+
+        .progress-seg.active {
+            background: var(--terracotta);
+        }
+
+        .progress-seg.done {
+            background: var(--lapis);
+        }
+
+        /* Bilgi & Görev Kartı */
+        .hud-header {
+            position: relative;
+            z-index: 10;
+            padding: 14px 20px 0;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .step-tag {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: var(--lapis);
+            letter-spacing: 1.5px;
+            margin-bottom: 4px;
+            display: block;
+            text-transform: uppercase;
+        }
+
+        .step-title {
+            font-size: 21px;
+            font-weight: 700;
+            color: var(--ink-dark);
+            margin-bottom: 5px;
+            letter-spacing: -0.2px;
+        }
+
+        .step-desc {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 13px;
+            line-height: 1.44;
+            color: var(--ink-muted);
+            max-width: 350px;
+            margin: 0 auto;
+        }
+
+        /* Alt Kontrol Alanı */
+        .bottom-deck {
+            position: relative;
+            z-index: 10;
+            padding: 14px 20px calc(env(safe-area-inset-bottom, 16px) + 16px);
+            background: linear-gradient(0deg, rgba(245, 239, 230, 0.98) 0%, rgba(245, 239, 230, 0) 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .instruction-pill {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-line);
+            padding: 11px 15px;
+            border-radius: 14px;
+            font-size: 13px;
+            color: var(--ink-dark);
+            text-align: center;
+            width: 100%;
+            box-shadow: 0 6px 20px rgba(38, 30, 27, 0.08);
+        }
+
+        .instruction-pill strong {
+            color: var(--terracotta);
+        }
+
+        /* Özel Dokunmatik Slider */
+        .slider-box {
+            width: 100%;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-line);
+            border-radius: 16px;
+            padding: 12px 15px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--ink-muted);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 6px;
+            background: rgba(38, 30, 27, 0.14);
+            outline: none;
+            touch-action: pan-x;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--terracotta);
+            box-shadow: 0 3px 10px rgba(184, 93, 59, 0.4);
+            border: 2px solid #fff;
+            cursor: pointer;
+        }
+
+        /* Aksiyon Butonu */
+        .action-btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 14px;
+            border: none;
+            background: linear-gradient(135deg, var(--terracotta), #9e4727);
+            color: #fffaf3;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 14.5px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            box-shadow: 0 8px 22px rgba(184, 93, 59, 0.3);
+            cursor: pointer;
+            transition: transform 0.15s ease;
+            display: none;
+        }
+
+        .action-btn:active {
+            transform: scale(0.97);
+        }
+
+        /* Final Tebrik Kartı Katmanı */
+        #final-card-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            background: rgba(38, 30, 27, 0.62);
+            backdrop-filter: blur(8px);
+            animation: fadeIn 0.7s ease forwards;
+            overflow-y: auto;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .certificate-card {
+            width: 100%;
+            background: linear-gradient(170deg, #fcf8f2 0%, #f1e6d6 100%);
+            border: 2px solid var(--gold);
+            border-radius: 22px;
+            padding: 18px 16px;
+            box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5), inset 0 0 0 4px rgba(198, 146, 58, 0.18);
+            text-align: center;
+            position: relative;
+        }
+
+        .roman-seal {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: var(--terracotta);
+            background: rgba(184, 93, 59, 0.1);
+            border: 1px solid rgba(184, 93, 59, 0.35);
+            padding: 4px 14px;
+            border-radius: 20px;
+            margin-bottom: 8px;
+        }
+
+        .card-title {
+            font-size: 19px;
+            font-weight: 700;
+            color: var(--ink-dark);
+            margin-bottom: 10px;
+            line-height: 1.25;
+        }
+
+        .card-message {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 13px;
+            line-height: 1.58;
+            color: #2f2521;
+            margin-bottom: 12px;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.72);
+            padding: 13px 13px;
+            border-radius: 14px;
+            border-left: 3.5px solid var(--terracotta);
+            max-height: 54vh;
+            overflow-y: auto;
+            touch-action: pan-y;
+        }
+
+        .card-message p {
+            margin-bottom: 8px;
+        }
+
+        .card-message p:last-child {
+            margin-bottom: 0;
+        }
+
+        .card-signature {
+            text-align: right;
+            font-family: "Georgia", serif;
+            font-style: italic;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--lapis);
+            margin-top: 6px;
+        }
+
+        .card-footer-tag {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--ink-muted);
+            margin-bottom: 12px;
+        }
+
+        .replay-btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            background: var(--ink-dark);
+            border: none;
+            color: #f5efe6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .replay-btn:active {
+            background: var(--terracotta);
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-shell">
+    <canvas id="arch-canvas"></canvas>
+
+    <!-- Üst Alan -->
+    <div>
+        <div class="top-bar">
+            <div class="arch-badge">
+                <span>🏛️ ARCH-ATLAS • XXIV.XI</span>
+            </div>
+            <div class="top-controls">
+                <button class="icon-btn" id="sound-toggle" aria-label="Sesi Aç/Kapat">🔇</button>
+                <button class="icon-btn" id="reset-top" aria-label="Başa Dön">↺</button>
+            </div>
+        </div>
+
+        <div class="progress-track">
+            <div class="progress-seg active" id="seg-0"></div>
+            <div class="progress-seg" id="seg-1"></div>
+            <div class="progress-seg" id="seg-2"></div>
+            <div class="progress-seg" id="seg-3"></div>
+            <div class="progress-seg" id="seg-4"></div>
+            <div class="progress-seg" id="seg-5"></div>
+            <div class="progress-seg" id="seg-6"></div>
+        </div>
+
+        <div class="hud-header">
+            <span class="step-tag" id="step-tag">DÖNEM 01 / 07 • ANTİK ROMA & VİTRUVİUS</span>
+            <h1 class="step-title" id="step-title">Mimarlığın Üç Temel İlkesi</h1>
+            <p class="step-desc" id="step-desc">Vitruvius'a göre her iyi yapı Firmitas (Sağlamlık), Utilitas (İşlevsellik) ve Venustas (Güzellik) dengesinde yükselir.</p>
+        </div>
+    </div>
+
+    <!-- Alt Etkileşim Alanı -->
+    <div class="bottom-deck">
+        <div class="slider-box" id="control-slider-box">
+            <div class="slider-labels">
+                <span id="slider-left-lbl">DOR (1:6)</span>
+                <span id="slider-center-val">1 : 6.0</span>
+                <span id="slider-right-lbl">KORİNT (1:10)</span>
+            </div>
+            <input type="range" id="main-slider" min="0" max="100" value="0">
+        </div>
+
+        <div class="instruction-pill" id="instruction-text">
+            Ortadaki Vitruvius pergel mührüne <strong>parmağınızı basılı tutun</strong>.
+        </div>
+
+        <button class="action-btn" id="next-stage-btn">Sonraki Mimari Döneme Geç →</button>
+    </div>
+
+    <!-- Final Öğretmenler Günü Kartı -->
+    <div id="final-card-overlay">
+        <div class="certificate-card">
+            <div class="roman-seal">FIRMITAS • UTILITAS • VENUSTAS</div>
+            <h2 class="card-title">Öğretmenler Gününüz Kutlu Olsun</h2>
+            <div class="card-message">
+                <p>Sevgili Batuhan Hocam,</p>
+                <p>Bu okula ilk geldiğin yıl tanıdım sizi. Öncelerde tarzına hep hayranlık duyduğum ve tanımak istediğim bir hocaydınız, şimdilerde ise hayatımın her anına dahil ettiğim bir abi, bir arkadaş oldunuz benim için. Başım sıkıştığında yanına koşabileceğim bir sığınak, her muhabbette bir yeni bilgi (Malumatfuruş) öğreten candan bir öğretmen, canım sıkkın olduğunda ya da hayatımla ilgili alacağım kararlarda danıştığım bir abi ve her ihtiyaç duyduğum anda benimle eğlenebilen bir dost oldunuz bana. Hakkınızı asla ödeyemem. İyi ki varsınız, iyi ki hayatımdasınız. Nice sizli senelerimiz olsun.</p>
+                <p><strong>Öğretmenler gününüz kutlu olsun!</strong></p>
+                <div class="card-signature">- Fatih</div>
+            </div>
+            <div class="card-footer-tag">7 / 7 Mimari Katman Tamamlandı</div>
+            <button class="replay-btn" id="replay-all-btn">↺ Mimarlık Atlasını Baştan Gez</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(() => {
+    const canvas = document.getElementById('arch-canvas');
+    const ctx = canvas.getContext('2d');
+    const shell = document.getElementById('app-shell');
+
+    // UI Elemanları
+    const stepTag = document.getElementById('step-tag');
+    const stepTitle = document.getElementById('step-title');
+    const stepDesc = document.getElementById('step-desc');
+    const instructionText = document.getElementById('instruction-text');
+    const nextBtn = document.getElementById('next-stage-btn');
+    const sliderBox = document.getElementById('control-slider-box');
+    const mainSlider = document.getElementById('main-slider');
+    const sliderLeftLbl = document.getElementById('slider-left-lbl');
+    const sliderRightLbl = document.getElementById('slider-right-lbl');
+    const sliderCenterVal = document.getElementById('slider-center-val');
+    const finalOverlay = document.getElementById('final-card-overlay');
+    const soundBtn = document.getElementById('sound-toggle');
+    const resetTopBtn = document.getElementById('reset-top');
+    const replayAllBtn = document.getElementById('replay-all-btn');
+
+    let width = 0, height = 0, dpr = 1;
+    let stage = 0; // 0..6 (7 aşama), 7 = Final
+    let time = 0;
+
+    const pointer = { x: 0, y: 0, isDown: false };
+
+    // --- WEB AUDIO API (AKUSTİK TAŞ & PERGEL SESLERİ) ---
+    let audioCtx = null;
+    let soundEnabled = false;
+
+    function initAudio() {
+        if (!audioCtx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
+
+    function toggleSound(forceState) {
+        initAudio();
+        soundEnabled = forceState !== undefined ? forceState : !soundEnabled;
+        soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+        if (soundEnabled) playStoneChime(440, 0.25);
+    }
+
+    function playStoneChime(freq, duration = 0.3, vol = 0.09) {
+        if (!soundEnabled || !audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.98, audioCtx.currentTime + duration);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // --- BOYUTLANDIRMA ---
+    function resize() {
+        const rect = shell.getBoundingClientRect();
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = rect.width;
+        height = rect.height;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- AŞAMA DEĞİŞKENLERİ ---
+    // 0: Vitruvius Üçlemesi
+    let vitruviusProgress = 0;
+    let stage0Done = false;
+
+    // 1: Klasik Düzenler (Sütun Oranı)
+    let columnRatio = 0; // 0..100
+    let columnHold = 0;
+    let stage1Done = false;
+
+    // 2: Roma Kemeri & Kilit Taşı
+    let keystone = { x: 0.5, y: 0.33, dragging: false, locked: false };
+    let stage2Done = false;
+
+    // 3: Bizans Pandantifi ve Kubbe
+    let domeAngle = 42; // derece
+    let domeHold = 0;
+    let stage3Done = false;
+
+    // 4: Gotik Uçan Payanda
+    let gothicTension = 0; // 0..6
+    let stage4Done = false;
+
+    // 5: Altın Oran (1.618)
+    let goldenSlider = 15;
+    let goldenHold = 0;
+    let stage5Done = false;
+
+    // 6: Malumatfuruş Fresk Kazıma
+    let scratchPoints = [];
+    let stage6Done = false;
+
+    const stagesMeta = [
+        {
+            tag: "DÖNEM 01 / 07 • ANTİK ROMA & VİTRUVİUS",
+            title: "Mimarlığın Üç Temel İlkesi",
+            desc: "Vitruvius'a göre her kalıcı yapı Sağlamlık (Firmitas), İşlevsellik (Utilitas) ve Güzellik (Venustas) ekseninde birleşir.",
+            instr: "Ortadaki Vitruvius mührüne <strong>parmağınızı basılı tutun</strong>."
+        },
+        {
+            tag: "DÖNEM 02 / 07 • ANTİK YUNAN DÜZENLERİ",
+            title: "Klasik Sütun Orantısı",
+            desc: "Dor düzeninin ağırbaşlı oranından yükselerek ince işçilikli Korint sütun oranına (1:9.5) ulaşın.",
+            instr: "Sürgüyü kaydırarak <strong>Korint Oranını (%85-%100)</strong> yakalayın."
+        },
+        {
+            tag: "DÖNEM 03 / 07 • ROMA MÜHENDİSLİĞİ",
+            title: "Kilit Taşını Yerleştir",
+            desc: "Yarım daire kemer, tüm basıncı en tepedeki tek bir kilit taşıyla yan ayaklara aktarır.",
+            instr: "Yukarıdaki <strong>kilit taşını sürükleyip</strong> kemerin tepesine oturtun."
+        },
+        {
+            tag: "DÖNEM 04 / 07 • BİZANS MİMARİSİ",
+            title: "Pandantif & Kubbe Geçişi",
+            desc: "Kare altyapı üzerine dairesel kubbeyi oturtmak için pandantif eksenini 0° hizasına getirin.",
+            instr: "Sürgü ile kubbe eksenini <strong>0° tam merkezine</strong> hizalayın."
+        },
+        {
+            tag: "DÖNEM 05 / 07 • GOTİK KATEDRALLER",
+            title: "Uçan Payanda & Vitray Işığı",
+            desc: "Yüksek taş duvarların yükünü uçan payandalarla dengeleyip gül pencereden ışığı içeri alın.",
+            instr: "Ekrandaki <strong>payanda kemerlerine 6 kez dokunarak</strong> yapıyı kilitleyin."
+        },
+        {
+            tag: "DÖNEM 06 / 07 • RÖNESANS & ALTIN ORAN",
+            title: "İlahi Oran: φ = 1.618",
+            desc: "Rönesans cephe estetiğinin sırrı olan Altın Oran spiralini yapı cephesiyle tam örtüştürün.",
+            instr: "Sürgüyü <strong>1.618 Altın Oran noktasına (%62)</strong> getirin."
+        },
+        {
+            tag: "DÖNEM 07 / 07 • MALUMATFURUŞ ARŞİVİ",
+            title: "Zamanın Katmanını Arala",
+            desc: "Her sohbet yeni bir bilgi, her katman ayrı bir hatıra. Fresk üzerindeki tozu silerek mührü açığa çıkarın.",
+            instr: "Ortadaki tabletin üzerini <strong>parmağınızla silerek</strong> temizleyin."
+        }
+    ];
+
+    function setupStage(idx) {
+        stage = idx;
+        nextBtn.style.display = 'none';
+        sliderBox.style.display = 'none';
+        finalOverlay.style.display = 'none';
+
+        for (let i = 0; i < 7; i++) {
+            const seg = document.getElementById(`seg-${i}`);
+            seg.className = 'progress-seg' + (i < idx ? ' done' : (i === idx ? ' active' : ''));
+        }
+
+        if (idx < 7) {
+            const meta = stagesMeta[idx];
+            stepTag.textContent = meta.tag;
+            stepTitle.textContent = meta.title;
+            stepDesc.textContent = meta.desc;
+            instructionText.innerHTML = meta.instr;
+        }
+
+        if (idx === 0) {
+            vitruviusProgress = 0;
+            stage0Done = false;
+        } else if (idx === 1) {
+            columnRatio = 0;
+            columnHold = 0;
+            mainSlider.value = 0;
+            sliderLeftLbl.textContent = 'DOR (1:6)';
+            sliderRightLbl.textContent = 'KORİNT (1:10)';
+            sliderCenterVal.textContent = '1 : 6.0';
+            stage1Done = false;
+            sliderBox.style.display = 'flex';
+        } else if (idx === 2) {
+            keystone = { x: 0.5, y: 0.34, dragging: false, locked: false };
+            stage2Done = false;
+        } else if (idx === 3) {
+            domeAngle = 42;
+            domeHold = 0;
+            mainSlider.value = 85;
+            sliderLeftLbl.textContent = '-45° SOL';
+            sliderRightLbl.textContent = '+45° SAĞ';
+            sliderCenterVal.textContent = '+35°';
+            stage3Done = false;
+            sliderBox.style.display = 'flex';
+        } else if (idx === 4) {
+            gothicTension = 0;
+            stage4Done = false;
+        } else if (idx === 5) {
+            goldenSlider = 15;
+            goldenHold = 0;
+            mainSlider.value = 15;
+            sliderLeftLbl.textContent = '1.00';
+            sliderRightLbl.textContent = '2.00';
+            sliderCenterVal.textContent = 'φ = 1.15';
+            stage5Done = false;
+            sliderBox.style.display = 'flex';
+        } else if (idx === 6) {
+            scratchPoints = [];
+            stage6Done = false;
+        } else if (idx === 7) {
+            finalOverlay.style.display = 'flex';
+            playStoneChime(392.00, 0.45, 0.1);
+            setTimeout(() => playStoneChime(493.88, 0.45, 0.1), 150);
+            setTimeout(() => playStoneChime(587.33, 0.65, 0.12), 300);
+        }
+    }
+
+    // --- DOKUNMATİK OLAYLAR ---
+    function getPos(e) {
+        const rect = shell.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    shell.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('button') || e.target.closest('input')) return;
+        if (!audioCtx) toggleSound(true);
+        const p = getPos(e);
+        pointer.isDown = true;
+        pointer.x = p.x;
+        pointer.y = p.y;
+
+        // Aşama 2: Kilit taşı tutma
+        if (stage === 2 && !keystone.locked) {
+            const kx = keystone.x * width;
+            const ky = keystone.y * height;
+            if (Math.hypot(p.x - kx, p.y - ky) < 60) {
+                keystone.dragging = true;
+            }
+        }
+
+        // Aşama 4: Gotik payanda dokunuşu
+        if (stage === 4 && !stage4Done) {
+            const cy = height * 0.5;
+            if (Math.abs(p.y - cy) < 140) {
+                gothicTension++;
+                playStoneChime(280 + gothicTension * 45, 0.25, 0.1);
+                if (gothicTension >= 6) {
+                    stage4Done = true;
+                    instructionText.innerHTML = "✅ <strong>Gotik Denge Kuruldu!</strong> Gül pencereden ışık süzülüyor.";
+                    nextBtn.style.display = 'block';
+                } else {
+                    instructionText.innerHTML = `🏛️ Payanda desteklendi! Kalan taş kemer: <strong>${6 - gothicTension}</strong>`;
+                }
+            }
+        }
+
+        // Aşama 6: Kazıma başlat
+        if (stage === 6 && !stage6Done) {
+            addScratch(p.x, p.y);
+        }
+    });
+
+    shell.addEventListener('pointermove', (e) => {
+        if (!pointer.isDown) return;
+        const p = getPos(e);
+        pointer.x = p.x;
+        pointer.y = p.y;
+
+        // Aşama 2: Kilit taşı sürükleme
+        if (stage === 2 && keystone.dragging && !keystone.locked) {
+            keystone.x = Math.max(0.25, Math.min(0.75, p.x / width));
+            keystone.y = Math.max(0.30, Math.min(0.55, p.y / height));
+
+            const targetX = width * 0.5;
+            const targetY = height * 0.455;
+            if (Math.hypot(keystone.x * width - targetX, keystone.y * height - targetY) < 22) {
+                keystone.x = 0.5;
+                keystone.y = 0.455;
+                keystone.locked = true;
+                keystone.dragging = false;
+                stage2Done = true;
+                playStoneChime(220, 0.4, 0.15);
+                setTimeout(() => playStoneChime(330, 0.4, 0.12), 100);
+                instructionText.innerHTML = "✅ <strong>Kilit Taşı Oturdu!</strong> Kemer statik olarak dengelendi.";
+                nextBtn.style.display = 'block';
+            }
+        }
+
+        // Aşama 6: Fresk kazıma
+        if (stage === 6 && !stage6Done) {
+            addScratch(p.x, p.y);
+        }
+    });
+
+    window.addEventListener('pointerup', () => {
+        keystone.dragging = false;
+        pointer.isDown = false;
+    });
+
+    function addScratch(x, y) {
+        const cx = width * 0.5;
+        const cy = height * 0.51;
+        if (Math.abs(x - cx) < 115 && Math.abs(y - cy) < 85) {
+            scratchPoints.push({ x, y });
+            if (scratchPoints.length % 10 === 0) playStoneChime(520, 0.08, 0.03);
+            if (scratchPoints.length >= 65 && !stage6Done) {
+                stage6Done = true;
+                instructionText.innerHTML = "✨ <strong>Tarihi Kitabe Açığa Çıktı!</strong> Özel notunuz hazır.";
+                nextBtn.textContent = "Batuhan Hocam'ın Notunu Aç 📜";
+                nextBtn.style.display = 'block';
+                playStoneChime(587.33, 0.4, 0.12);
+            }
+        }
+    }
+
+    mainSlider.addEventListener('input', (e) => {
+        if (!audioCtx) toggleSound(true);
+        const val = parseInt(e.target.value, 10);
+        if (stage === 1) {
+            columnRatio = val;
+            const ratioText = (6 + (val / 100) * 4).toFixed(1);
+            sliderCenterVal.textContent = `1 : ${ratioText}`;
+            if (Math.random() < 0.25) playStoneChime(300 + val * 2, 0.07, 0.03);
+        } else if (stage === 3) {
+            domeAngle = Math.round((val - 50) * 0.9);
+            sliderCenterVal.textContent = `${domeAngle > 0 ? '+' : ''}${domeAngle}°`;
+            if (Math.random() < 0.25) playStoneChime(350 - Math.abs(domeAngle) * 2, 0.07, 0.03);
+        } else if (stage === 5) {
+            goldenSlider = val;
+            const phi = (1 + val / 100).toFixed(2);
+            sliderCenterVal.textContent = `φ = ${phi}`;
+            if (Math.random() < 0.25) playStoneChime(320 + val * 2, 0.07, 0.03);
+        }
+    });
+
+    nextBtn.addEventListener('click', () => {
+        playStoneChime(440, 0.15, 0.08);
+        setupStage(stage + 1);
+    });
+
+    soundBtn.addEventListener('click', () => toggleSound());
+    resetTopBtn.addEventListener('click', () => setupStage(0));
+    replayAllBtn.addEventListener('click', () => setupStage(0));
+
+    // --- ARKA PLAN MİMARİ ESKİZ IZGARASI ---
+    function drawDraftingGrid() {
+        ctx.strokeStyle = 'rgba(38, 30, 27, 0.055)';
+        ctx.lineWidth = 1;
+        const step = 32;
+        for (let x = 0; x < width; x += step) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+        }
+        for (let y = 0; y < height; y += step) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+        }
+        // Pergel referans çemberi
+        ctx.beginPath();
+        ctx.arc(width * 0.5, height * 0.51, 145, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(198, 146, 58, 0.16)';
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // --- AŞAMA 0: VİTRUVİUS ÜÇLEMESİ ---
+    function renderStage0() {
+        const cx = width * 0.5;
+        const cy = height * 0.52;
+
+        if (pointer.isDown && !stage0Done) {
+            if (Math.hypot(pointer.x - cx, pointer.y - cy) < 130) {
+                vitruviusProgress = Math.min(100, vitruviusProgress + 1.15);
+                if (Math.floor(vitruviusProgress) % 10 === 0) {
+                    playStoneChime(260 + vitruviusProgress * 3, 0.1, 0.05);
+                }
+            }
+        } else if (!stage0Done) {
+            vitruviusProgress = Math.max(0, vitruviusProgress - 0.5);
+        }
+
+        if (vitruviusProgress >= 100 && !stage0Done) {
+            stage0Done = true;
+            instructionText.innerHTML = "✅ <strong>Vitruvius Dengesi Kuruldu!</strong> Üç temel ilke mühürlendi.";
+            nextBtn.style.display = 'block';
+            playStoneChime(523.25, 0.4, 0.12);
+        }
+
+        const p = vitruviusProgress / 100;
+
+        // Dış daire & Kare (Vitruvius geometrisi)
+        ctx.strokeStyle = '#261e1b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 98, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const sq = 138;
+        ctx.strokeStyle = 'rgba(43, 76, 126, 0.55)';
+        ctx.strokeRect(cx - sq / 2, cy - sq / 2 + 12, sq, sq);
+
+        // Eşkenar Üçgen (Firmitas - Utilitas - Venustas)
+        const r = 88;
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+            const ang = -Math.PI / 2 + (i * Math.PI * 2) / 3 + (1 - p) * 0.6;
+            const vx = cx + Math.cos(ang) * r;
+            const vy = cy + Math.sin(ang) * r;
+            if (i === 0) ctx.moveTo(vx, vy);
+            else ctx.lineTo(vx, vy);
+        }
+        ctx.closePath();
+        ctx.fillStyle = `rgba(184, 93, 59, ${0.1 + p * 0.25})`;
+        ctx.fill();
+        ctx.strokeStyle = '#b85d3b';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Köşe Etiketleri
+        ctx.fillStyle = '#261e1b';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('FIRMITAS', cx, cy - 106);
+        ctx.fillText('UTILITAS', cx - 82, cy + 72);
+        ctx.fillText('VENUSTAS', cx + 82, cy + 72);
+
+        // İlerleme yayı
+        ctx.beginPath();
+        ctx.arc(cx, cy, 112, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p);
+        ctx.strokeStyle = '#c6923a';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.fillStyle = '#b85d3b';
+        ctx.font = 'bold 14px Georgia';
+        ctx.fillText(`%${Math.floor(vitruviusProgress)}`, cx, cy + 5);
+    }
+
+    // --- AŞAMA 1: KLASİK SÜTUN ORANI ---
+    function renderStage1() {
+        const cx = width * 0.5;
+        const baseY = height * 0.67;
+        const colHeight = 135 + (columnRatio / 100) * 65;
+        const colWidth = 42 - (columnRatio / 100) * 12;
+        const topY = baseY - colHeight;
+
+        // Kaide (Stylobat)
+        ctx.fillStyle = '#d9cbb8';
+        ctx.strokeStyle = '#261e1b';
+        ctx.lineWidth = 2;
+        ctx.fillRect(cx - 65, baseY, 130, 14);
+        ctx.strokeRect(cx - 65, baseY, 130, 14);
+
+        // Sütun Gövdesi (Yivli)
+        ctx.fillStyle = '#efe6d8';
+        ctx.fillRect(cx - colWidth / 2, topY, colWidth, colHeight);
+        ctx.strokeRect(cx - colWidth / 2, topY, colWidth, colHeight);
+
+        // Yiv çizgileri
+        ctx.strokeStyle = 'rgba(38, 30, 27, 0.25)';
+        ctx.lineWidth = 1;
+        for (let i = -2; i <= 2; i++) {
+            const fx = cx + (i * colWidth) / 6;
+            ctx.beginPath();
+            ctx.moveTo(fx, topY + 6);
+            ctx.lineTo(fx, baseY - 6);
+            ctx.stroke();
+        }
+
+        // Sütun Başlığı (Dor -> İyon -> Korint)
+        ctx.fillStyle = '#c6923a';
+        ctx.strokeStyle = '#261e1b';
+        ctx.lineWidth = 2;
+        if (columnRatio < 40) {
+            // Dor Başlık
+            ctx.fillRect(cx - colWidth * 0.75, topY - 14, colWidth * 1.5, 14);
+            ctx.strokeRect(cx - colWidth * 0.75, topY - 14, colWidth * 1.5, 14);
+        } else if (columnRatio < 80) {
+            // İyon Volütleri
+            ctx.fillRect(cx - colWidth * 0.7, topY - 14, colWidth * 1.4, 14);
+            ctx.beginPath();
+            ctx.arc(cx - colWidth * 0.7, topY - 7, 8, 0, Math.PI * 2);
+            ctx.arc(cx + colWidth * 0.7, topY - 7, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        } else {
+            // Korint Akantus Yapraklı Başlık
+            ctx.beginPath();
+            ctx.moveTo(cx - colWidth * 0.5, topY);
+            ctx.lineTo(cx - colWidth * 0.9, topY - 24);
+            ctx.lineTo(cx + colWidth * 0.9, topY - 24);
+            ctx.lineTo(cx + colWidth * 0.5, topY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        if (columnRatio >= 84 && !stage1Done) {
+            columnHold++;
+            if (columnHold >= 55) {
+                stage1Done = true;
+                instructionText.innerHTML = "✅ <strong>Korint Düzeni Tamamlandı!</strong> Zarif oran-orantı kilitlendi.";
+                nextBtn.style.display = 'block';
+                playStoneChime(554.37, 0.35, 0.12);
+            }
+        } else if (!stage1Done) {
+            columnHold = Math.max(0, columnHold - 1);
+        }
+
+        ctx.fillStyle = '#2b4c7e';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        const orderName = columnRatio < 40 ? 'DOR DÜZENİ' : (columnRatio < 80 ? 'İYON DÜZENİ' : 'KORİNT DÜZENİ');
+        ctx.fillText(orderName, cx, baseY + 34);
+    }
+
+    // --- AŞAMA 2: ROMA KEMERİ VE KİLİT TAŞI ---
+    function renderStage2() {
+        const cx = width * 0.5;
+        const archCenterY = height * 0.58;
+        const innerR = 72;
+        const outerR = 108;
+
+        // Kemer Taşları (Voussoirs) - Ortadaki hariç
+        const segments = 7;
+        for (let i = 0; i < segments; i++) {
+            if (i === 3) continue; // Ortadaki kilit taşı boşluğu
+            const a1 = Math.PI + (i / segments) * Math.PI;
+            const a2 = Math.PI + ((i + 1) / segments) * Math.PI;
+
+            ctx.beginPath();
+            ctx.arc(cx, archCenterY, outerR, a1, a2);
+            ctx.arc(cx, archCenterY, innerR, a2, a1, true);
+            ctx.closePath();
+            ctx.fillStyle = i % 2 === 0 ? '#dfd2c0' : '#d2c1ab';
+            ctx.fill();
+            ctx.strokeStyle = '#261e1b';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // Yan ayaklar
+        ctx.fillStyle = '#cbb9a1';
+        ctx.fillRect(cx - outerR, archCenterY, outerR - innerR, 75);
+        ctx.strokeRect(cx - outerR, archCenterY, outerR - innerR, 75);
+        ctx.fillRect(cx + innerR, archCenterY, outerR - innerR, 75);
+        ctx.strokeRect(cx + innerR, archCenterY, outerR - innerR, 75);
+
+        // Hedef Kilit Taşı Yuvası (Kesikli çizgi)
+        if (!keystone.locked) {
+            ctx.beginPath();
+            ctx.moveTo(cx - 18, height * 0.43);
+            ctx.lineTo(cx + 18, height * 0.43);
+            ctx.lineTo(cx + 12, height * 0.48);
+            ctx.lineTo(cx - 12, height * 0.48);
+            ctx.closePath();
+            ctx.strokeStyle = '#b85d3b';
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Sürüklenen Kilit Taşı (Keystone)
+        const kx = keystone.x * width;
+        const ky = keystone.y * height;
+        ctx.beginPath();
+        ctx.moveTo(kx - 20, ky - 18);
+        ctx.lineTo(kx + 20, ky - 18);
+        ctx.lineTo(kx + 13, ky + 18);
+        ctx.lineTo(kx - 13, ky + 18);
+        ctx.closePath();
+        ctx.fillStyle = keystone.locked ? '#c6923a' : '#b85d3b';
+        ctx.fill();
+        ctx.strokeStyle = '#261e1b';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('KİLİT', kx, ky + 3);
+    }
+
+    // --- AŞAMA 3: BİZANS PANDANTİFİ VE KUBBE ---
+    function renderStage3() {
+        const cx = width * 0.5;
+        const cy = height * 0.50;
+
+        // Kare Altyapı (Sabit)
+        ctx.strokeStyle = '#2b4c7e';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(cx - 88, cy - 88, 176, 176);
+
+        // Pandantif Köşe Üçgenleri
+        ctx.fillStyle = 'rgba(43, 76, 126, 0.14)';
+        ctx.fillRect(cx - 88, cy - 88, 176, 176);
+
+        // Dönen Dairesel Kubbe Planı
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate((domeAngle * Math.PI) / 180);
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 86, 0, Math.PI * 2);
+        ctx.fillStyle = '#f5efe6';
+        ctx.fill();
+        ctx.strokeStyle = Math.abs(domeAngle) <= 3 ? '#2b4c7e' : '#b85d3b';
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+
+        // Kubbe kaburgaları
+        for (let i = 0; i < 8; i++) {
+            const a = (i * Math.PI) / 4;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(a) * 86, Math.sin(a) * 86);
+            ctx.strokeStyle = 'rgba(198, 146, 58, 0.65)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+        ctx.restore();
+
+        if (Math.abs(domeAngle) <= 3 && !stage3Done) {
+            domeHold++;
+            if (domeHold >= 50) {
+                stage3Done = true;
+                instructionText.innerHTML = "✅ <strong>Kubbe Pandantiflere Oturdu!</strong> Merkezi plan kusursuz hizalandı.";
+                nextBtn.style.display = 'block';
+                playStoneChime(587.33, 0.35, 0.12);
+            }
+        } else if (!stage3Done) {
+            domeHold = Math.max(0, domeHold - 1);
+        }
+    }
+
+    // --- AŞAMA 4: GOTİK UÇAN PAYANDA ---
+    function renderStage4() {
+        const cx = width * 0.5;
+        const baseY = height * 0.66;
+        const progress = gothicTension / 6;
+
+        // Orta Sivri Kemerli Nef Duvarı
+        ctx.fillStyle = '#e5d8c5';
+        ctx.strokeStyle = '#261e1b';
+        ctx.lineWidth = 2;
+        ctx.fillRect(cx - 42, baseY - 170, 84, 170);
+        ctx.strokeRect(cx - 42, baseY - 170, 84, 170);
+
+        // Gül Pencere (Vitray)
+        ctx.beginPath();
+        ctx.arc(cx, baseY - 115, 26, 0, Math.PI * 2);
+        ctx.fillStyle = progress >= 1 ? '#c6923a' : 'rgba(43, 76, 126, 0.25)';
+        ctx.fill();
+        ctx.stroke();
+
+        // Uçan Payandalar (Dokundukça kademeli çizilir)
+        const tiers = Math.min(3, Math.ceil(gothicTension / 2));
+        for (let t = 0; t < tiers; t++) {
+            const yOff = baseY - 50 - t * 42;
+            // Sol Payanda
+            ctx.beginPath();
+            ctx.moveTo(cx - 95, yOff + 25);
+            ctx.quadraticCurveTo(cx - 68, yOff - 5, cx - 42, yOff);
+            ctx.strokeStyle = '#b85d3b';
+            ctx.lineWidth = 5;
+            ctx.stroke();
+
+            // Sağ Payanda
+            ctx.beginPath();
+            ctx.moveTo(cx + 95, yOff + 25);
+            ctx.quadraticCurveTo(cx + 68, yOff - 5, cx + 42, yOff);
+            ctx.stroke();
+        }
+
+        // Dış Kule Ayakları
+        ctx.fillStyle = '#d3c2ac';
+        ctx.fillRect(cx - 108, baseY - 150, 16, 150);
+        ctx.strokeRect(cx - 108, baseY - 150, 16, 150);
+        ctx.fillRect(cx + 92, baseY - 150, 16, 150);
+        ctx.strokeRect(cx + 92, baseY - 150, 16, 150);
+
+        // Işık hüzmeleri
+        if (gothicTension >= 6) {
+            ctx.fillStyle = 'rgba(198, 146, 58, 0.22)';
+            ctx.beginPath();
+            ctx.moveTo(cx - 20, baseY - 115);
+            ctx.lineTo(cx - 80, baseY);
+            ctx.lineTo(cx + 80, baseY);
+            ctx.lineTo(cx + 20, baseY - 115);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // --- AŞAMA 5: ALTIN ORAN ---
+    function renderStage5() {
+        const cx = width * 0.5;
+        const cy = height * 0.50;
+        const w = 180;
+        const h = 112;
+
+        // Rönesans Cephe Dikdörtgeni
+        ctx.strokeStyle = '#261e1b';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(cx - w / 2, cy - h / 2, w, h);
+
+        // Dinamik Altın Kesit Çizgisi
+        const splitX = (cx - w / 2) + (w * (goldenSlider / 100));
+        ctx.beginPath();
+        ctx.moveTo(splitX, cy - h / 2 - 15);
+        ctx.lineTo(splitX, cy + h / 2 + 15);
+        ctx.strokeStyle = '#b85d3b';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // İdeal Altın Oran Noktası (0.618)
+        const idealX = (cx - w / 2) + w * 0.618;
+        ctx.beginPath();
+        ctx.arc(idealX, cy, 18, 0, Math.PI * 2);
+        ctx.strokeStyle = '#c6923a';
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const inPhi = Math.abs(goldenSlider - 62) <= 3;
+        if (inPhi && !stage5Done) {
+            goldenHold++;
+            if (goldenHold >= 50) {
+                stage5Done = true;
+                instructionText.innerHTML = "✅ <strong>Altın Oran (1.618) Yakalandı!</strong> Kusursuz simetri ve armoni.";
+                nextBtn.style.display = 'block';
+                playStoneChime(659.25, 0.35, 0.12);
+            }
+        } else if (!stage5Done) {
+            goldenHold = Math.max(0, goldenHold - 1);
+        }
+    }
+
+    // --- AŞAMA 6: MALUMATFURUŞ KİTABE KAZIMA ---
+    function renderStage6() {
+        const cx = width * 0.5;
+        const cy = height * 0.51;
+        const boxW = 240;
+        const boxH = 160;
+
+        // Alt Katman: Altın Mühürlü Kitabe
+        ctx.fillStyle = '#fcf8f2';
+        ctx.strokeStyle = '#c6923a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(cx - boxW / 2, cy - boxH / 2, boxW, boxH, 16);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#b85d3b';
+        ctx.font = 'bold 14px Georgia';
+        ctx.textAlign = 'center';
+        ctx.fillText('24 KASIM • ÖĞRETMENLER GÜNÜ', cx, cy - 16);
+        ctx.fillStyle = '#261e1b';
+        ctx.font = 'italic 15px Georgia';
+        ctx.fillText('“Sevgili Batuhan Hocam...”', cx, cy + 12);
+        ctx.fillStyle = '#2b4c7e';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('MALUMATFURUŞ ÖZEL ARŞİVİ', cx, cy + 40);
+
+        // Üst Katman: Zaman Tozu / Sıva Katmanı
+        if (!stage6Done) {
+            ctx.fillStyle = '#cbbba5';
+            ctx.beginPath();
+            ctx.roundRect(cx - boxW / 2, cy - boxH / 2, boxW, boxH, 16);
+            ctx.fill();
+
+            // Kazınan noktaları temizle
+            scratchPoints.forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 24, 0, Math.PI * 2);
+                ctx.fillStyle = '#fcf8f2';
+                ctx.fill();
+            });
+
+            ctx.fillStyle = '#5c4e46';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(`TEMİZLENEN ALAN: %${Math.min(100, Math.round((scratchPoints.length / 65) * 100))}`, cx, cy + boxH / 2 + 24);
+        }
+    }
+
+    // --- ANA DÖNGÜ ---
+    function loop() {
+        time += 0.025;
+        ctx.clearRect(0, 0, width, height);
+        drawDraftingGrid();
+
+        if (stage === 0) renderStage0();
+        else if (stage === 1) renderStage1();
+        else if (stage === 2) renderStage2();
+        else if (stage === 3) renderStage3();
+        else if (stage === 4) renderStage4();
+        else if (stage === 5) renderStage5();
+        else if (stage === 6) renderStage6();
+
+        requestAnimationFrame(loop);
+    }
+
+    setupStage(0);
+    loop();
+})();
+</script>
+</body>
+</html>
